@@ -17,13 +17,13 @@ COPY gateway/asterisk/config/http.conf /etc/asterisk/http.conf
 COPY gateway/asterisk/config/modules.conf /etc/asterisk/modules.conf
 COPY gateway/asterisk/config/rtp.conf /etc/asterisk/rtp.conf
 
+# Copy startup script
+COPY gateway/start-asterisk.sh /start-asterisk.sh
+RUN chmod +x /start-asterisk.sh
+
 # Create necessary directories
 RUN mkdir -p /var/run/asterisk && \
-  chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk
-
-# Fix capability errors by disabling core dumps and running as non-privileged user
-RUN sed -i 's/;dumpcore = yes/dumpcore = no/' /etc/asterisk/asterisk.conf && \
-  echo -e "\n[options]\ndontarncore = yes" >> /etc/asterisk/asterisk.conf
+  chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk /etc/asterisk
 
 # Expose ports
 # 8088: WebSocket (WSS)
@@ -31,5 +31,5 @@ RUN sed -i 's/;dumpcore = yes/dumpcore = no/' /etc/asterisk/asterisk.conf && \
 # 10000-10099: RTP media
 EXPOSE 8088 5060 10000-10099/udp
 
-# Start Asterisk with user/group flags to avoid capability issues
-CMD ["asterisk", "-f", "-vvv", "-U", "asterisk", "-G", "asterisk"]
+# Start Asterisk using the startup script
+CMD ["/start-asterisk.sh"]
