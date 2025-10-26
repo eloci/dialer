@@ -1,0 +1,33 @@
+services:
+  asterisk:
+    image: andrius/asterisk:latest
+    container_name: asterisk-webrtc-gateway
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+    ports:
+      - "8088:8088/tcp" # WebSocket (ws)
+      - "8089:8089/tcp" # Secure WebSocket (wss) optional
+      - "5060:5060/udp" # SIP UDP
+      - "10000-10100:10000-10100/udp" # RTP media (reduced range)
+    volumes:
+      - ./config/asterisk.conf:/etc/asterisk/asterisk.conf:ro
+      - ./config/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./config/http.conf:/etc/asterisk/http.conf:ro
+      - ./config/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./config/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./config/modules.conf:/etc/asterisk/modules.conf:ro
+      - ./certs:/etc/asterisk/keys:ro
+
+  coturn:
+    image: instrumentisto/coturn
+    container_name: turn-relay
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
+    command: >-
+      --no-cli --lt-cred-mech --user dialer:secret123 --realm dialer.local --no-software-attribute --fingerprint --no-multicast-peers --no-tls --listening-port 3478 --listening-ip 0.0.0.0 --external-ip=77.29.180.211 --min-port=49160 --max-port=49200
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "49160-49200:49160-49200/udp"

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>WebSocket Test</title>
+</head>
+
+<body>
+  <h1>WebSocket Connection Test</h1>
+  <div id="status">Testing...</div>
+  <div id="log" style="margin-top: 20px; font-family: monospace; white-space: pre;"></div>
+
+  <script>
+    const log = document.getElementById('log');
+    const status = document.getElementById('status');
+
+    function addLog(msg) {
+      const timestamp = new Date().toLocaleTimeString();
+      log.textContent += `[${timestamp}] ${msg}\n`;
+      console.log(msg);
+    }
+
+    addLog('Testing WebSocket connection to ws://localhost:8088/ws');
+    addLog('Using SIP subprotocol as required by Asterisk');
+
+    try {
+      // Asterisk requires the 'sip' subprotocol for WebSocket connections
+      const ws = new WebSocket('ws://localhost:8088/ws', 'sip');
+
+      ws.onopen = function () {
+        status.textContent = '✅ Connected!';
+        status.style.color = 'green';
+        addLog('WebSocket connection opened successfully!');
+      };
+
+      ws.onerror = function (error) {
+        status.textContent = '❌ Connection Error';
+        status.style.color = 'red';
+        addLog('WebSocket error: ' + JSON.stringify(error));
+      };
+
+      ws.onclose = function (event) {
+        status.textContent = '❌ Connection Closed';
+        status.style.color = 'orange';
+        addLog(`WebSocket closed: Code=${event.code}, Reason=${event.reason}, Clean=${event.wasClean}`);
+      };
+
+      ws.onmessage = function (event) {
+        addLog('Message received: ' + event.data);
+      };
+
+    } catch (e) {
+      status.textContent = '❌ Exception';
+      status.style.color = 'red';
+      addLog('Exception: ' + e.message);
+    }
+  </script>
+</body>
+
+</html>

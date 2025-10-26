@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  kamailio:
+    build: .
+    container_name: kamailio-webrtc-gateway
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./kamailio.cfg:/etc/kamailio/kamailio.cfg:ro
+      - ./tls:/etc/kamailio/tls:ro
+    environment:
+      - SIP_DOMAIN=localhost
+      - MY_IP_ADDR=127.0.0.1
+      - MY_WS_PORT=8088
+      - MY_SIP_PORT=5060
+    command: kamailio -DD -E -m 64
+
+  rtpengine:
+    image: drachtio/rtpengine:latest
+    container_name: rtpengine-media
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - INTERFACES=127.0.0.1
+      - PORT_MIN=10000
+      - PORT_MAX=10100
+    command: >
+      rtpengine --interface=127.0.0.1 --listen-ng=127.0.0.1:2223 --port-min=10000 --port-max=10100 --log-level=6 --dtls-passive --no-fallback
+
+  coturn:
+    image: instrumentisto/coturn:latest
+    container_name: turn-relay
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      -n --listening-port=3478 --fingerprint --lt-cred-mech --user=dialer:secret123 --realm=dialer.local --log-file=stdout --external-ip=77.29.180.211 --min-port=49160 --max-port=49200

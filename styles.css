@@ -1,0 +1,413 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    padding: 30px;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 30px;
+    font-size: 2.5em;
+}
+
+h2 {
+    color: #555;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 10px;
+}
+
+.config-section,
+.numbers-section,
+.call-section,
+.history-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #555;
+    font-weight: 600;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-right: 10px;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #5a6268;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+    font-size: 18px;
+    padding: 15px 30px;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+}
+
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+
+.btn-small {
+    background: #17a2b8;
+    color: white;
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
+.btn-small:hover {
+    background: #138496;
+}
+
+.status {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.status.connected {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status.disconnected {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.numbers-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.number-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.number-card .number {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+.number-card .label {
+    font-size: 14px;
+    color: #666;
+}
+
+.number-card .actions {
+    display: flex;
+    gap: 10px;
+}
+
+.number-card .btn {
+    flex: 1;
+    margin: 0;
+    padding: 8px;
+    font-size: 14px;
+}
+
+.call-status {
+    font-size: 18px;
+    font-weight: 600;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.call-status.calling {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.call-status.connected {
+    background: #d4edda;
+    color: #155724;
+}
+
+.current-number {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    color: #667eea;
+    margin-bottom: 20px;
+}
+
+.call-controls {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.audio-controls {
+    text-align: center;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+}
+
+.audio-controls label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-weight: 600;
+    color: #555;
+}
+
+.audio-controls input[type="range"] {
+    width: 200px;
+    cursor: pointer;
+}
+
+.call-history {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.history-item {
+    background: white;
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.history-item .number {
+    font-weight: 600;
+    color: #333;
+}
+
+.history-item .time {
+    font-size: 12px;
+    color: #666;
+}
+
+.history-item .duration {
+    font-size: 14px;
+    color: #667eea;
+}
+
+.history-item.failed {
+    border-left: 4px solid #dc3545;
+}
+
+.history-item.success {
+    border-left: 4px solid #28a745;
+}
+
+/* Scrollbar styling */
+.call-history::-webkit-scrollbar {
+    width: 8px;
+}
+
+.call-history::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.call-history::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 10px;
+}
+
+.call-history::-webkit-scrollbar-thumb:hover {
+    background: #5568d3;
+}
+
+/* Active Call Cards */
+.active-call-card {
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.active-call-card.listening {
+    border-color: #28a745;
+    background: #f0fff4;
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+}
+
+.active-call-card.muted {
+    opacity: 0.7;
+}
+
+.active-call-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.active-call-number {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+.active-call-status {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #28a745;
+    color: white;
+}
+
+.active-call-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #666;
+}
+
+.active-call-timer {
+    font-family: monospace;
+    font-size: 16px;
+    color: #333;
+}
+
+.active-call-countdown {
+    font-size: 12px;
+    color: #ff6b6b;
+}
+
+.active-call-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-listen {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease;
+}
+
+.btn-listen:hover {
+    background: #218838;
+}
+
+.btn-listen.active {
+    background: #1e7e34;
+}
+
+.btn-hangup-single {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s ease;
+}
+
+.btn-hangup-single:hover {
+    background: #c82333;
+}

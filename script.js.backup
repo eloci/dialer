@@ -1,0 +1,573 @@
+// Application State
+let state = {
+  connected: false,
+  activeCall: null,
+  activeSession: null,
+  userAgent: null,
+  config: {
+    sipServer: '',
+    username: '',
+    password: '',
+    realm: ''
+  },
+  numbers: [],
+  callHistory: [],
+  isMuted: false
+};
+
+// DOM Elements
+const elements = {
+  sipServer: document.getElementById('sipServer'),
+  username: document.getElementById('username'),
+  password: document.getElementById('password'),
+  realm: document.getElementById('realm'),
+  connectBtn: document.getElementById('connectBtn'),
+  disconnectBtn: document.getElementById('disconnectBtn'),
+  connectionStatus: document.getElementById('connectionStatus'),
+  newNumber: document.getElementById('newNumber'),
+  newNumberLabel: document.getElementById('newNumberLabel'),
+  addNumberBtn: document.getElementById('addNumberBtn'),
+  numbersList: document.getElementById('numbersList'),
+  callStatus: document.getElementById('callStatus'),
+  currentNumber: document.getElementById('currentNumber'),
+  hangupBtn: document.getElementById('hangupBtn'),
+  muteBtn: document.getElementById('muteBtn'),
+  volumeControl: document.getElementById('volumeControl'),
+  callHistory: document.getElementById('callHistory'),
+  remoteAudio: document.getElementById('remoteAudio'),
+  ringbackTone: document.getElementById('ringbackTone')
+};
+
+// Load data from localStorage
+function loadData() {
+  const savedNumbers = localStorage.getItem('dialerNumbers');
+  if (savedNumbers) {
+    state.numbers = JSON.parse(savedNumbers);
+  } else {
+    // Add some default numbers
+    state.numbers = [
+      { number: '100', label: 'Test Number 1' },
+      { number: '200', label: 'Test Number 2' },
+      { number: '300', label: 'Test Number 3' },
+      { number: '*97', label: 'Voicemail' }
+    ];
+  }
+
+  const savedHistory = localStorage.getItem('dialerHistory');
+  if (savedHistory) {
+    state.callHistory = JSON.parse(savedHistory);
+  }
+
+  const savedConfig = localStorage.getItem('dialerConfig');
+  if (savedConfig) {
+    const config = JSON.parse(savedConfig);
+    elements.sipServer.value = config.sipServer || 'wss://';
+    elements.username.value = config.username || '';
+    elements.realm.value = config.realm || '';
+  }
+}
+
+// Save data to localStorage
+function saveNumbers() {
+  localStorage.setItem('dialerNumbers', JSON.stringify(state.numbers));
+}
+
+function saveHistory() {
+  localStorage.setItem('dialerHistory', JSON.stringify(state.callHistory));
+}
+
+function saveConfig() {
+  const config = {
+    sipServer: elements.sipServer.value,
+    username: elements.username.value,
+    realm: elements.realm.value
+  };
+  localStorage.setItem('dialerConfig', JSON.stringify(config));
+}
+
+// Initialize JsSIP User Agent
+function initUserAgent(sipServer, username, password, realm) {
+  try {
+    // Create JsSIP URI
+    const uri = `sip:${username}@${realm || sipServer.replace(/^wss?:\/\//, '').split(':')[0]}`;
+    
+    const configuration = {
+      sockets: [new JsSIP.WebSocketInterface(sipServer)],
+      uri: uri,
+      password: password,
+      register: true,
+      session_timers: false,
+      register_expires: 600
+    };
+
+    // Create user agent
+    const ua = new JsSIP.UA(configuration);
+
+    // Event handlers
+    ua.on('connected', (e) => {
+      console.log('WebSocket connected');
+    });
+
+    ua.on('disconnected', (e) => {
+      console.log('WebSocket disconnected');
+      if (state.connected) {
+        updateConnectionStatus('Disconnected', false);
+      }
+    });
+
+    ua.on('registered', (e) => {
+      console.log('Successfully registered');
+      updateConnectionStatus('Connected & Registered', true);
+    });
+
+    ua.on('unregistered', (e) => {
+      console.log('Unregistered');
+    });
+
+    ua.on('registrationFailed', (e) => {
+      console.error('Registration failed:', e.cause);
+      updateConnectionStatus(`Registration Failed: ${e.cause}`, false);
+      elements.connectBtn.disabled = false;
+      elements.disconnectBtn.disabled = true;
+    });
+
+    ua.on('newRTCSession', (e) => {
+      const session = e.session;
+      
+      // Incoming call
+      if (session.direction === 'incoming') {
+        handleIncomingCall(session);
+      }
+    });
+
+    return ua;
+  } catch (error) {
+    console.error('Error initializing User Agent:', error);
+    alert('Error initializing SIP client: ' + error.message);
+    return null;
+  }
+}
+
+// Handle incoming calls
+function handleIncomingCall(session) {
+  if (state.activeSession) {
+    session.terminate();
+    return;
+  }
+
+  const callerNumber = session.remote_identity.uri.user;
+  const callerName = session.remote_identity.display_name || callerNumber;
+
+  if (confirm(`Incoming call from ${callerName} (${callerNumber})\n\nAnswer?`)) {
+    state.activeSession = session;
+    setupSessionHandlers(session);
+    
+    const answerOptions = {
+      mediaConstraints: {
+        audio: true,
+        video: false
+      }
+    };
+    
+    session.answer(answerOptions);
+  } else {
+    session.terminate();
+  }
+}
+
+// Update connection status
+function updateConnectionStatus(message, isConnected) {
+  state.connected = isConnected;
+  elements.connectionStatus.textContent = message;
+  elements.connectionStatus.classList.remove('connected', 'disconnected');
+  elements.connectionStatus.classList.add(isConnected ? 'connected' : 'disconnected');
+  
+  if (isConnected) {
+    elements.connectBtn.disabled = true;
+    elements.disconnectBtn.disabled = false;
+  } else {
+    elements.connectBtn.disabled = false;
+    elements.disconnectBtn.disabled = true;
+  }
+}
+
+// Connect to Softswitch
+function connect() {
+  const sipServer = elements.sipServer.value.trim();
+  const username = elements.username.value.trim();
+  const password = elements.password.value.trim();
+  const realm = elements.realm.value.trim();
+
+  if (!sipServer || !username || !password) {
+    alert('Please fill in SIP Server, Username, and Password');
+    return;
+  }
+
+  if (!sipServer.startsWith('ws://') && !sipServer.startsWith('wss://')) {
+    alert('SIP Server must start with ws:// or wss://');
+    return;
+  }
+
+  // Save config
+  state.config = { sipServer, username, password, realm };
+  saveConfig();
+
+  elements.connectionStatus.textContent = 'Connecting...';
+  elements.connectBtn.disabled = true;
+
+  try {
+    state.userAgent = initUserAgent(sipServer, username, password, realm);
+    
+    if (state.userAgent) {
+      state.userAgent.start();
+      console.log('User Agent started, attempting to register...');
+    } else {
+      elements.connectBtn.disabled = false;
+    }
+  } catch (error) {
+    console.error('Connection error:', error);
+    alert('Failed to connect: ' + error.message);
+    elements.connectBtn.disabled = false;
+    elements.connectionStatus.textContent = 'Connection Failed';
+  }
+}
+
+// Disconnect from Softswitch
+function disconnect() {
+  if (state.activeSession) {
+    hangup();
+  }
+
+  if (state.userAgent) {
+    state.userAgent.stop();
+    state.userAgent = null;
+  }
+
+  updateConnectionStatus('Not Connected', false);
+  console.log('Disconnected from SIP server');
+}
+
+// Setup session event handlers
+function setupSessionHandlers(session) {
+  session.on('progress', (e) => {
+    console.log('Call in progress');
+    elements.callStatus.textContent = 'Ringing...';
+    elements.ringbackTone.play();
+  });
+
+  session.on('accepted', (e) => {
+    console.log('Call accepted');
+    elements.ringbackTone.pause();
+    elements.ringbackTone.currentTime = 0;
+    
+    elements.callStatus.textContent = 'Call Connected';
+    elements.callStatus.classList.remove('calling');
+    elements.callStatus.classList.add('connected');
+    
+    if (state.activeCall) {
+      state.activeCall.status = 'connected';
+      state.activeCall.connectTime = new Date();
+    }
+  });
+
+  session.on('confirmed', (e) => {
+    console.log('Call confirmed');
+    
+    // Get remote stream and attach to audio element
+    const remoteStream = new MediaStream();
+    const receivers = session.connection.getReceivers();
+    
+    receivers.forEach((receiver) => {
+      if (receiver.track) {
+        remoteStream.addTrack(receiver.track);
+      }
+    });
+    
+    elements.remoteAudio.srcObject = remoteStream;
+    elements.remoteAudio.play();
+    
+    // Enable call controls
+    elements.hangupBtn.disabled = false;
+    elements.muteBtn.disabled = false;
+    elements.volumeControl.disabled = false;
+  });
+
+  session.on('ended', (e) => {
+    console.log('Call ended:', e.cause);
+    endCall(e.cause);
+  });
+
+  session.on('failed', (e) => {
+    console.log('Call failed:', e.cause);
+    endCall('Call Failed: ' + e.cause);
+  });
+
+  session.on('peerconnection', (e) => {
+    console.log('Peer connection created');
+    
+    e.peerconnection.addEventListener('addstream', (event) => {
+      console.log('Remote stream added');
+      elements.remoteAudio.srcObject = event.stream;
+    });
+  });
+}
+
+// Make a call
+function makeCall(number, label) {
+  if (!state.connected) {
+    alert('Please connect to the SIP server first!');
+    return;
+  }
+
+  if (state.activeSession) {
+    alert('Please hang up the current call first!');
+    return;
+  }
+
+  if (!state.userAgent) {
+    alert('User agent not initialized!');
+    return;
+  }
+
+  console.log('Making call to:', number);
+
+  state.activeCall = {
+    number,
+    label,
+    startTime: new Date(),
+    status: 'calling'
+  };
+
+  elements.callStatus.textContent = 'Calling...';
+  elements.callStatus.classList.remove('connected');
+  elements.callStatus.classList.add('calling');
+  elements.currentNumber.textContent = `${label || number} (${number})`;
+
+  const callOptions = {
+    mediaConstraints: {
+      audio: true,
+      video: false
+    },
+    pcConfig: {
+      iceServers: [
+        { urls: ['stun:stun.l.google.com:19302'] }
+      ]
+    }
+  };
+
+  try {
+    const session = state.userAgent.call(`sip:${number}@${state.config.realm || state.config.sipServer.replace(/^wss?:\/\//, '').split(':')[0]}`, callOptions);
+    state.activeSession = session;
+    setupSessionHandlers(session);
+  } catch (error) {
+    console.error('Error making call:', error);
+    alert('Failed to make call: ' + error.message);
+    state.activeCall = null;
+    elements.callStatus.textContent = 'No active call';
+    elements.callStatus.classList.remove('calling');
+    elements.currentNumber.textContent = '';
+  }
+}
+
+// End call helper
+function endCall(reason) {
+  elements.ringbackTone.pause();
+  elements.ringbackTone.currentTime = 0;
+
+  const endTime = new Date();
+  const duration = state.activeCall && state.activeCall.connectTime
+    ? Math.floor((endTime - state.activeCall.connectTime) / 1000)
+    : 0;
+
+  // Add to history
+  if (state.activeCall) {
+    state.callHistory.unshift({
+      number: state.activeCall.number,
+      label: state.activeCall.label,
+      time: endTime.toLocaleString(),
+      duration: duration,
+      status: state.activeCall.status === 'connected' ? 'success' : 'failed',
+      reason: reason || 'Normal'
+    });
+
+    // Keep only last 50 calls
+    if (state.callHistory.length > 50) {
+      state.callHistory = state.callHistory.slice(0, 50);
+    }
+
+    saveHistory();
+    renderHistory();
+  }
+
+  console.log('Call ended. Duration:', duration, 'seconds');
+
+  state.activeCall = null;
+  state.activeSession = null;
+  state.isMuted = false;
+  
+  elements.callStatus.textContent = 'No active call';
+  elements.callStatus.classList.remove('calling', 'connected');
+  elements.currentNumber.textContent = '';
+  elements.hangupBtn.disabled = true;
+  elements.muteBtn.disabled = true;
+  elements.muteBtn.textContent = '🔇 Mute';
+  elements.volumeControl.disabled = true;
+  
+  // Stop audio
+  if (elements.remoteAudio.srcObject) {
+    elements.remoteAudio.srcObject.getTracks().forEach(track => track.stop());
+    elements.remoteAudio.srcObject = null;
+  }
+}
+
+// Hang up call
+function hangup() {
+  if (!state.activeSession) return;
+
+  try {
+    state.activeSession.terminate();
+  } catch (error) {
+    console.error('Error hanging up:', error);
+    endCall('Error');
+  }
+}
+
+// Toggle mute
+function toggleMute() {
+  if (!state.activeSession) return;
+
+  state.isMuted = !state.isMuted;
+
+  if (state.isMuted) {
+    state.activeSession.mute();
+    elements.muteBtn.textContent = '🔊 Unmute';
+    console.log('Microphone muted');
+  } else {
+    state.activeSession.unmute();
+    elements.muteBtn.textContent = '🔇 Mute';
+    console.log('Microphone unmuted');
+  }
+}
+
+// Adjust volume
+function adjustVolume() {
+  const volume = elements.volumeControl.value / 100;
+  elements.remoteAudio.volume = volume;
+  console.log('Volume set to:', volume);
+}
+
+// Add a new number
+function addNumber() {
+  const number = elements.newNumber.value.trim();
+  const label = elements.newNumberLabel.value.trim();
+
+  if (!number) {
+    alert('Please enter a phone number');
+    return;
+  }
+
+  state.numbers.push({ number, label: label || number });
+  saveNumbers();
+  renderNumbers();
+
+  elements.newNumber.value = '';
+  elements.newNumberLabel.value = '';
+}
+
+// Remove a number
+function removeNumber(index) {
+  if (confirm('Are you sure you want to remove this number?')) {
+    state.numbers.splice(index, 1);
+    saveNumbers();
+    renderNumbers();
+  }
+}
+
+// Render numbers list
+function renderNumbers() {
+  elements.numbersList.innerHTML = '';
+
+  if (state.numbers.length === 0) {
+    elements.numbersList.innerHTML = '<p style="text-align: center; color: #999;">No numbers added yet. Add some numbers above!</p>';
+    return;
+  }
+
+  state.numbers.forEach((item, index) => {
+    const card = document.createElement('div');
+    card.className = 'number-card';
+    card.innerHTML = `
+      <div class="number">${item.number}</div>
+      <div class="label">${item.label}</div>
+      <div class="actions">
+        <button class="btn btn-success" onclick="makeCall('${item.number}', '${item.label}')">
+          📞 Call
+        </button>
+        <button class="btn btn-danger" onclick="removeNumber(${index})">
+          🗑️
+        </button>
+      </div>
+    `;
+    elements.numbersList.appendChild(card);
+  });
+}
+
+// Render call history
+function renderHistory() {
+  elements.callHistory.innerHTML = '';
+
+  if (state.callHistory.length === 0) {
+    elements.callHistory.innerHTML = '<p style="text-align: center; color: #999;">No call history yet</p>';
+    return;
+  }
+
+  state.callHistory.forEach(call => {
+    const item = document.createElement('div');
+    item.className = `history-item ${call.status}`;
+
+    const durationText = call.duration > 0
+      ? `${Math.floor(call.duration / 60)}m ${call.duration % 60}s`
+      : 'Not answered';
+
+    item.innerHTML = `
+      <div>
+        <div class="number">${call.label || call.number}</div>
+        <div class="time">${call.time}</div>
+      </div>
+      <div class="duration">${durationText}</div>
+    `;
+    elements.callHistory.appendChild(item);
+  });
+}
+
+// Event Listeners
+elements.connectBtn.addEventListener('click', connect);
+elements.disconnectBtn.addEventListener('click', disconnect);
+elements.addNumberBtn.addEventListener('click', addNumber);
+elements.hangupBtn.addEventListener('click', hangup);
+elements.muteBtn.addEventListener('click', toggleMute);
+elements.volumeControl.addEventListener('input', adjustVolume);
+
+// Enter key support
+elements.newNumber.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') addNumber();
+});
+
+elements.newNumberLabel.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') addNumber();
+});
+
+elements.password.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') connect();
+});
+
+// Initialize
+loadData();
+renderNumbers();
+renderHistory();
+elements.connectionStatus.classList.add('disconnected');
+
+// Set initial volume
+elements.remoteAudio.volume = 0.8;
+
+console.log('Production SIP Dialer initialized with JsSIP');
+console.log('Ready to make real SIP calls with audio!');

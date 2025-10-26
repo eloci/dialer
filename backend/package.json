@@ -1,0 +1,29 @@
+{
+  "name": "sip-dialer-backend",
+  "version": "1.0.0",
+  "description": "Backend proxy for SIP dialer to connect to traditional SIP servers",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "simple": "node server-simple.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "drachtio-srf": "^4.5.0",
+    "express": "^4.18.2",
+    "express-session": "^1.18.2",
+    "form-data": "^4.0.4",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
+    "sip": "^0.0.6",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIP Dialer</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #ddd;
+    }
+
+    .header h1 {
+      margin: 0;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 5px;
+      border-bottom: 2px solid #ddd;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 12px 20px;
+      background: #f5f5f5;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-size: 15px;
+      transition: all 0.3s;
+    }
+
+    .tab-btn:hover {
+      background: #e8e8e8;
+    }
+
+    .tab-btn.active {
+      background: white;
+      border-bottom: 3px solid #007bff;
+      font-weight: bold;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 15px;
+    }
+
+    .card h3 {
+      margin-top: 0;
+      color: #333;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Auth Check Script -->
+  <script>
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // Redirect to login page
+      window.location.href = '/login.html';
+    } else {
+      // Verify token is valid
+      fetch('/api/auth/verify', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.valid) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = '/login.html';
+        }
+      })
+      .catch(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+      });
+    }
+
+    // Logout function
+    function logout() {
+      if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login.html';
+      }
+    }
+  </script>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>📞 SIP Dialer</h1>
+      <div style="display: flex; align-items: center; gap: 15px;">
+        <span id="userInfo" style="color: #666; font-size: 14px;"></span>
+        <button onclick="logout()" style="padding: 8px 15px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">Logout</button>
+        <div id="connectionStatus" class="status">Not Connected</div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('dialer')">📞 Dialer</button>
+      <button class="tab-btn" onclick="switchTab('numbers')">📋 Numbers</button>
+      <button class="tab-btn" onclick="switchTab('autodialer')">🤖 Auto Dialer</button>
+      <button class="tab-btn" onclick="switchTab('ai-voice')">🎙️ AI Voice</button>
+      <button class="tab-btn" onclick="switchTab('config')">⚙️ Configuration</button>
+      <button class="tab-btn" onclick="switchTab('history')">📜 History</button>
+    </div>
+
+    <!-- ========== TAB: DIALER ========== -->
+    <div class="tab-content active" id="tab-dialer">
+      <div class="quick-actions">
+        <button id="connectBtn" class="btn btn-primary">🔌 Connect</button>
+        <button id="disconnectBtn" class="btn btn-secondary" disabled>🔌 Disconnect</button>
+        <button id="hangupBtn" class="btn btn-danger" disabled>❌ Hang Up All</button>
+        <button id="muteBtn" class="btn" disabled>🔇 Mute</button>
+      </div>
+
+      <!-- Active Calls -->
+      <div class="card">
+        <h3>Active Calls</h3>
+        <div id="callStatus" class="status">No active calls</div>
+        <div id="activeCallsList"></div>
+      </div>
+
+      <!-- Audio Controls -->
+      <div class="card">
+        <h3>Audio Controls</h3>
+        <div class="form-group">
+          <label for="volumeControl">Volume:</label>
+          <input type="range" id="volumeControl" min="0" max="100" value="80" style="width: 100%;">
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== TAB: NUMBERS ========== -->
+    <div class="tab-content" id="tab-numbers">
+      <div class="card">
+        <h3>Add New Number</h3>
+        <div class="form-group">
+          <label for="newNumber">Phone Number:</label>
+          <input type="text" id="newNumber" placeholder="Enter phone number">
+        </div>
+        <div class="form-group">
+          <label for="newNumberLabel">Label (optional):</label>
+          <input type="text" id="newNumberLabel" placeholder="e.g., Customer Service">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="newNumberMinDuration">Min Duration (sec):</label>
+            <input type="number" id="newNumberMinDuration" value="180" min="1">
+          </div>
+          <div class="form-group">
+            <label for="newNumberMaxDuration">Max Duration (sec):</label>
+            <input type="number" id="newNumberMaxDuration" value="240" min="1">
+          </div>
+        </div>
+        <button id="addNumberBtn" class="btn btn-primary">➕ Add Number</button>
+      </div>
+
+      <!-- Import from Excel -->
+      <div class="card">
+        <h3>Import Numbers from CSV File</h3>
+        <div class="form-group">
+          <label for="excelFileInput">Upload CSV File:</label>
+          <input type="file" id="excelFileInput" accept=".csv,.txt"
+            style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+          <small>
+            <strong>⚠️ Important:</strong> If using Excel, save your file as <strong>CSV (Comma delimited)</strong>
+            first!<br>
+            <strong>File format:</strong> CSV file with columns separated by comma, semicolon, or tab<br>
+            <strong>Columns:</strong> Phone Number, Label (optional), Min Duration (sec), Max Duration (sec)<br>
+            <strong>Example:</strong><br>
+            <code style="background: #f5f5f5; padding: 5px; display: block; margin-top: 5px;">
+              Phone Number,Label,Min Duration,Max Duration<br>
+              +1234567890,Customer A,180,240<br>
+              +0987654321,Customer B,120,180
+            </code>
+          </small>
+        </div>
+        <button id="importExcelBtn" class="btn btn-success">📂 Import from File</button>
+        <div id="importStatus" style="margin-top: 10px; color: #666; font-size: 13px;"></div>
+      </div>
+
+      <!-- Multi-Select Actions -->
+      <div class="card">
+        <h3>Multi-Select Actions</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="batchMinDuration">Batch Min Duration (sec):</label>
+            <input type="number" id="batchMinDuration" value="180" min="1">
+          </div>
+          <div class="form-group">
+            <label for="batchMaxDuration">Batch Max Duration (sec):</label>
+            <input type="number" id="batchMaxDuration" value="240" min="1">
+          </div>
+        </div>
+        <div class="quick-actions">
+          <button id="callSelectedBtn" class="btn btn-primary">📞 Call Selected</button>
+          <button id="selectAllBtn" class="btn btn-secondary">☑️ Select All</button>
+          <button id="deselectAllBtn" class="btn btn-secondary">⬜ Deselect All</button>
+        </div>
+      </div>
+
+      <!-- Numbers List -->
+      <div class="card">
+        <h3>Your Numbers</h3>
+        <div id="numbersList" class="numbers-list"></div>
+      </div>
+    </div>
+
+    <!-- ========== TAB: AUTO DIALER ========== -->
+    <div class="tab-content" id="tab-autodialer">
+      <div class="card">
+        <h3>Auto Dialer Settings</h3>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="autoDialerEnabled">
+            Enable Auto Dialer
+          </label>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="autoDialerWorkingHoursStart">Working Hours Start (24h format - HH:MM):</label>
+            <input type="text" id="autoDialerWorkingHoursStart" value="09:00" placeholder="08:00" maxlength="5"
+              pattern="[0-2][0-9]:[0-5][0-9]"
+              style="font-family: monospace; font-size: 18px; padding: 8px; width: 100px;">
+            <small>Enter time in 24h format: 08:00 = 8 AM, 14:00 = 2 PM, 20:00 = 8 PM</small>
+          </div>
+          <div class="form-group">
+            <label for="autoDialerWorkingHoursEnd">Working Hours End (24h format - HH:MM):</label>
+            <input type="text" id="autoDialerWorkingHoursEnd" value="18:00" placeholder="18:00" maxlength="5"
+              pattern="[0-2][0-9]:[0-5][0-9]"
+              style="font-family: monospace; font-size: 18px; padding: 8px; width: 100px;">
+            <small>Enter time in 24h format: 08:00 = 8 AM, 14:00 = 2 PM, 20:00 = 8 PM</small>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="autoDialerMinInterval">Min Interval Between Calls (sec):</label>
+            <input type="number" id="autoDialerMinInterval" value="5" min="0">
+            <small>Minimum random delay between calls</small>
+          </div>
+          <div class="form-group">
+            <label for="autoDialerMaxInterval">Max Interval Between Calls (sec):</label>
+            <input type="number" id="autoDialerMaxInterval" value="15" min="0">
+            <small>Maximum random delay between calls</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="autoDialerMaxActiveCalls">Maximum Active Calls:</label>
+          <input type="number" id="autoDialerMaxActiveCalls" value="1" min="1">
+        </div>
+
+        <!-- IVR Text-to-Speech Settings -->
+        <div
+          style="margin-top: 20px; padding: 15px; border: 2px solid #28a745; border-radius: 5px; background: #f0f9f0;">
+          <h4 style="margin-top: 0; color: #28a745;">🎙️ IVR Hold Message (Text-to-Speech)</h4>
+
+          <div class="form-group">
+            <label for="ivrMessageEnabled">
+              <input type="checkbox" id="ivrMessageEnabled" checked>
+              Enable Custom IVR Message
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="ivrMessageText">IVR Message Text:</label>
+            <textarea id="ivrMessageText" rows="3"
+              style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+              placeholder="Hello, this is an automated call. Please hold the line until our agent becomes available. Thank you for your patience.">Hello, this is an automated call. Please hold the line until our agent becomes available. Thank you for your patience.</textarea>
+            <small>Enter the message you want callers to hear when on hold</small>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="ivrVoice">Voice:</label>
+              <select id="ivrVoice" style="width: 100%; padding: 8px;">
+                <!-- Will be populated by available voices -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ivrRepeat">
+                <input type="checkbox" id="ivrRepeat" checked>
+                Repeat Message Continuously
+              </label>
+              <small>Message will loop until call is answered</small>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="ivrRate">Speech Rate:</label>
+              <input type="range" id="ivrRate" min="0.5" max="2" step="0.1" value="1">
+              <small>Speed: <span id="ivrRateValue">1.0</span>x</small>
+            </div>
+            <div class="form-group">
+              <label for="ivrPitch">Speech Pitch:</label>
+              <input type="range" id="ivrPitch" min="0" max="2" step="0.1" value="1">
+              <small>Pitch: <span id="ivrPitchValue">1.0</span></small>
+            </div>
+          </div>
+
+          <button id="testIvrBtn" class="btn" style="background: #17a2b8; color: white;">🔊 Test IVR Message</button>
+        </div>
+
+        <div class="quick-actions">
+          <button id="startAutoDialerBtn" class="btn btn-success">▶️ Start Auto Dialer</button>
+          <button id="stopAutoDialerBtn" class="btn btn-danger" disabled>⏹️ Stop Auto Dialer</button>
+        </div>
+
+        <div id="autoDialerStatus" class="status" style="margin-top: 15px;">Auto Dialer: Stopped</div>
+
+        <!-- Active Calls Display -->
+        <div style="margin-top: 20px;">
+          <h4 style="margin-bottom: 10px;">Active Calls (<span id="activeCallsCount">0</span>):</h4>
+          <div id="autoDialerActiveCallsList"
+            style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="color: #666; font-style: italic; text-align: center; padding: 20px;">No active calls</p>
+          </div>
+        </div>
+
+        <!-- Selected Numbers List for Auto Dialer -->
+        <div style="margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0;">Selected Numbers for Auto Dialer:</h4>
+            <div style="display: flex; gap: 10px;">
+              <button onclick="resetAllStatistics()" class="btn"
+                style="background: #dc3545; color: white; padding: 6px 16px; font-size: 13px;">
+                🔄 Reset All Statistics
+              </button>
+              <button onclick="resetAllCDRs()" class="btn"
+                style="background: #ff6b6b; color: white; padding: 6px 16px; font-size: 13px;">
+                🗑️ Reset All CDRs
+              </button>
+            </div>
+          </div>
+          <div id="autoDialerNumbersList"
+            style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 5px; padding: 10px; background-color: #f9f9f9;">
+            <p style="color: #666; font-style: italic;">No numbers selected. Go to Numbers tab and select numbers to
+              include in auto dialer.</p>
+          </div>
+        </div>
+
+        <!-- Detailed Number Information Panel -->
+        <div id="numberDetailsPanel" style="margin-top: 20px; display: none;">
+          <h4 style="margin-bottom: 10px; color: #007bff;">📊 Detailed Number Information</h4>
+          <div style="border: 2px solid #007bff; border-radius: 8px; padding: 15px; background-color: #f0f8ff;">
+            <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #007bff;">
+              <h5 style="margin: 0 0 5px 0; color: #333;" id="detailNumberTitle">Number Details</h5>
+              <p style="margin: 0; color: #666; font-size: 14px;" id="detailNumberSubtitle">Click to close</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+              <!-- Contact Information -->
+              <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h6 style="margin: 0 0 10px 0; color: #007bff; font-size: 13px; text-transform: uppercase;">📞 Contact
+                  Info</h6>
+                <div style="font-size: 14px; line-height: 1.8;">
+                  <div><strong>Label:</strong> <span id="detailLabel">-</span></div>
+                  <div><strong>Number:</strong> <span id="detailNumber">-</span></div>
+                  <div><strong>Status:</strong> <span id="detailStatus">-</span></div>
+                </div>
+              </div>
+
+              <!-- Call Statistics -->
+              <div onclick="toggleCDRRecords()"
+                style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; transition: all 0.3s ease;"
+                onmouseover="this.style.boxShadow='0 4px 8px rgba(40,167,69,0.3)'"
+                onmouseout="this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'">
+                <h6 style="margin: 0 0 10px 0; color: #28a745; font-size: 13px; text-transform: uppercase;">📈 Call
+                  Statistics
+                  <span style="font-size: 11px; color: #666; font-weight: normal;">(click to view CDR records)</span>
+                </h6>
+                <div style="font-size: 14px; line-height: 1.8;">
+                  <div><strong>Total Calls:</strong> <span id="detailTotalCalls">0</span></div>
+                  <div><strong>Connected:</strong> <span id="detailConnectedCalls" style="color: #28a745;">0</span>
+                  </div>
+                  <div><strong>Failed:</strong> <span id="detailFailedCalls" style="color: #dc3545;">0</span></div>
+                  <div><strong>Success Rate:</strong> <span id="detailSuccessRate">0%</span></div>
+                </div>
+              </div>
+
+              <!-- Duration Information -->
+              <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h6 style="margin: 0 0 10px 0; color: #ffc107; font-size: 13px; text-transform: uppercase;">⏱ Duration
+                  Info</h6>
+                <div style="font-size: 14px; line-height: 1.8;">
+                  <div><strong>Total Minutes:</strong> <span id="detailTotalMinutes">0</span></div>
+                  <div><strong>Avg. Duration:</strong> <span id="detailAvgDuration">0 min</span></div>
+                  <div><strong>Min Duration:</strong> <span id="detailMinDuration">-</span></div>
+                  <div><strong>Max Duration:</strong> <span id="detailMaxDuration">-</span></div>
+                </div>
+              </div>
+
+              <!-- Last Call Information -->
+              <div style="background: white; padding: 12px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <h6 style="margin: 0 0 10px 0; color: #17a2b8; font-size: 13px; text-transform: uppercase;">🕒 Last Call
+                </h6>
+                <div style="font-size: 14px; line-height: 1.8;">
+                  <div><strong>Time:</strong> <span id="detailLastCallTime">-</span></div>
+                  <div><strong>Status:</strong> <span id="detailLastCallStatus">-</span></div>
+                  <div><strong>SIP Error:</strong> <span id="detailLastSipError">-</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CDR Records Section (Hidden by default) -->
+            <div id="cdrRecordsSection"
+              style="display: none; margin-top: 20px; border-top: 2px solid #28a745; padding-top: 15px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h6 style="margin: 0; color: #28a745; font-size: 15px; text-transform: uppercase;">📋 Call Detail
+                  Records (CDR)</h6>
+                <button onclick="toggleCDRRecords()" class="btn"
+                  style="background: #dc3545; color: white; padding: 4px 12px; font-size: 12px;">
+                  Hide CDR
+                </button>
+              </div>
+
+              <!-- Date Filter -->
+              <div
+                style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px; border: 1px solid #ddd;">
+                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                  <div>
+                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">From Date &
+                      Time:</label>
+                    <input type="datetime-local" id="cdrFilterFrom"
+                      style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 12px; color: #666; display: block; margin-bottom: 4px;">To Date &
+                      Time:</label>
+                    <input type="datetime-local" id="cdrFilterTo"
+                      style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+                  </div>
+                  <div style="margin-top: 18px;">
+                    <button onclick="applyCDRFilter()" class="btn"
+                      style="background: #28a745; color: white; padding: 6px 16px; font-size: 13px; margin-right: 8px;">
+                      🔍 Apply Filter
+                    </button>
+                    <button onclick="clearCDRFilter()" class="btn"
+                      style="background: #6c757d; color: white; padding: 6px 16px; font-size: 13px;">
+                      ❌ Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="cdrRecordsList"
+                style="max-height: 400px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+                <p style="color: #666; text-align: center; font-style: italic;">No call records found</p>
+              </div>
+            </div>
+
+            <!-- Close Button -->
+            <div style="margin-top: 15px; text-align: center; display: flex; gap: 10px; justify-content: center;">
+              <button onclick="resetSingleNumberStatistics()" class="btn"
+                style="background: #ffc107; color: #333; padding: 8px 24px; font-weight: bold;">
+                🔄 Reset Statistics
+              </button>
+              <button onclick="closeNumberDetails()" class="btn"
+                style="background: #007bff; color: white; padding: 8px 24px;">
+                Close Details
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== TAB: AI VOICE ========== -->
+    <div class="tab-content" id="tab-ai-voice">
+      <div class="card">
+        <h3>🎙️ AI Voice Conversation</h3>
+        <p style="color: #666; margin-bottom: 20px;">Make a call and let AI handle the conversation using
+          text-to-speech.</p>
+
+        <!-- Call Controls -->
+        <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+          <h4 style="color: white; margin-bottom: 15px;">📞 Call Setup</h4>
+
+          <div class="form-group">
+            <label for="aiVoiceNumber" style="color: white;">Phone Number to Call:</label>
+            <input type="text" id="aiVoiceNumber" placeholder="+1234567890"
+              style="font-size: 18px; padding: 12px; background: white; color: #333;">
+            <small style="color: #e0e0e0;">Enter the destination number (with country code)</small>
+          </div>
+
+          <div class="form-group">
+            <label for="aiVoiceLabel" style="color: white;">Label (optional):</label>
+            <input type="text" id="aiVoiceLabel" placeholder="Customer Name" style="background: white; color: #333;">
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <button id="startAICallBtn" class="btn"
+              style="background: #28a745; color: white; flex: 1; font-size: 16px; padding: 12px;">
+              📞 Start AI Call
+            </button>
+            <button id="hangupAICallBtn" class="btn" disabled
+              style="background: #dc3545; color: white; flex: 1; font-size: 16px; padding: 12px;">
+              ❌ Hang Up
+            </button>
+          </div>
+
+          <!-- Call Status -->
+          <div id="aiCallStatus"
+            style="margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; text-align: center; font-weight: bold;">
+            Ready to call
+          </div>
+        </div>
+
+        <!-- AI Mode Selection -->
+        <div class="card" style="margin-top: 20px;">
+          <h4>🧠 AI Mode</h4>
+
+          <div class="form-group">
+            <label>Select Conversation Mode:</label>
+            <select id="aiMode" style="padding: 10px; font-size: 14px;">
+              <option value="script">📜 Scripted Mode (Pre-defined conversation steps)</option>
+              <option value="dynamic">🤖 Dynamic AI Mode (Real-time AI responses with ChatGPT/Claude)</option>
+              <option value="keyword">🔑 Keyword-Based Mode (Branching based on caller responses)</option>
+            </select>
+          </div>
+
+          <div id="aiModeDescription"
+            style="background: #e8f4f8; padding: 12px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #0066cc;">
+            📜 Scripted Mode: AI follows pre-defined conversation steps in sequence.
+          </div>
+        </div>
+
+        <!-- Dynamic AI Configuration -->
+        <div class="card" id="dynamicAIConfig" style="margin-top: 20px; display: none;">
+          <h4>🤖 Dynamic AI Configuration</h4>
+
+          <form autocomplete="off" onsubmit="return false;">
+            <div class="form-group">
+              <label for="aiProvider">AI Provider:</label>
+              <select id="aiProvider" style="padding: 8px;">
+                <option value="openai">OpenAI (ChatGPT)</option>
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="local">Local LLM</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="aiApiKey">API Key:</label>
+              <input type="password" id="aiApiKey" placeholder="Enter your API key" autocomplete="off">
+              <small style="color: #666;">Your API key is stored locally and never shared.</small>
+            </div>
+          </form>
+
+          <div class="form-group">
+            <label for="aiConversationLanguage">Conversation Language:</label>
+            <select id="aiConversationLanguage" style="padding: 8px; font-size: 14px;">
+              <option value="en">🇬🇧 English</option>
+              <option value="tr">🇹🇷 Turkish (Türkçe)</option>
+              <option value="sr">🇷🇸 Serbian (Српски)</option>
+              <option value="mk">🇲🇰 Macedonian (Македонски)</option>
+              <option value="es">🇪🇸 Spanish</option>
+              <option value="fr">🇫🇷 French</option>
+              <option value="de">🇩🇪 German</option>
+              <option value="it">🇮🇹 Italian</option>
+              <option value="pt">🇧🇷 Portuguese</option>
+              <option value="zh">🇨🇳 Chinese</option>
+              <option value="ja">🇯🇵 Japanese</option>
+              <option value="ko">🇰🇷 Korean</option>
+            </select>
+            <small style="color: #666;">AI will speak and understand in this language as a native speaker</small>
+          </div>
+
+          <div class="form-group">
+            <label for="aiSystemPrompt">System Prompt (AI Personality):</label>
+            <textarea id="aiSystemPrompt" rows="4"
+              placeholder="Example: You are a friendly customer service representative helping customers with their orders..."
+              style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;">You are a helpful and professional AI assistant conducting a phone conversation. Be concise, friendly, and natural in your responses.</textarea>
+            <button type="button" id="useLanguageTemplateBtn" class="btn"
+              style="background: #6c757d; color: white; margin-top: 5px;">
+              📝 Use Native Language Template
+            </button>
+          </div>
+
+          <div class="form-group">
+            <label for="aiModel">Model:</label>
+            <select id="aiModel" style="padding: 8px;">
+              <option value="gpt-4">GPT-4</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+              <option value="claude-3-opus">Claude 3 Opus</option>
+              <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="aiEnableSpeechRecognition" checked>
+              Enable Speech Recognition (Listen to caller responses)
+            </label>
+          </div>
+
+          <button id="testAIConnectionBtn" class="btn" style="background: #17a2b8; color: white;">
+            🔌 Test AI Connection
+          </button>
+        </div>
+
+        <!-- AI Conversation Script -->
+        <div class="card" id="scriptedModeConfig" style="margin-top: 20px;">
+          <h4>🤖 AI Conversation Script</h4>
+
+          <div class="form-group">
+            <label>Conversation Flow:</label>
+            <div id="aiConversationSteps"
+              style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; background: #f9f9f9; max-height: 400px; overflow-y: auto;">
+              <!-- Steps will be added here -->
+            </div>
+          </div>
+
+          <button id="addConversationStepBtn" class="btn" style="background: #007bff; color: white; margin-top: 10px;">
+            ➕ Add Conversation Step
+          </button>
+        </div>
+
+        <!-- Keyword-Based Conversation -->
+        <div class="card" id="keywordModeConfig" style="margin-top: 20px; display: none;">
+          <h4>🔑 Keyword-Based Conversation Flow</h4>
+
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="keywordEnableSpeechRecognition" checked>
+              Enable Speech Recognition (Listen for keywords)
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>Conversation Branches:</label>
+            <div id="keywordBranches"
+              style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; background: #f9f9f9; max-height: 400px; overflow-y: auto;">
+              <!-- Branches will be added here -->
+            </div>
+          </div>
+
+          <button id="addKeywordBranchBtn" class="btn" style="background: #007bff; color: white; margin-top: 10px;">
+            ➕ Add Keyword Branch
+          </button>
+        </div>
+
+        <!-- Speech Recognition Settings -->
+        <div class="card" id="speechRecognitionSettings" style="margin-top: 20px; display: none;">
+          <h4>🎤 Speech Recognition Settings</h4>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="recognitionMethod">Recognition Method:</label>
+              <select id="recognitionMethod" style="padding: 8px;">
+                <option value="browser">Browser Speech Recognition (May Echo)</option>
+                <option value="whisper" selected>OpenAI Whisper (Recommended)</option>
+              </select>
+              <small style="color: #e67e22; font-weight: bold;">⚠️ Use Whisper to avoid echo during calls</small>
+            </div>
+
+            <div class="form-group">
+              <label for="recognitionLanguage">Recognition Language:</label>
+              <select id="recognitionLanguage" style="padding: 8px;">
+                <option value="en-US">English (US)</option>
+                <option value="en-GB">English (UK)</option>
+                <option value="tr-TR">Turkish (Türkçe)</option>
+                <option value="sr-RS">Serbian (Српски)</option>
+                <option value="mk-MK">Macedonian (Македонски)</option>
+                <option value="es-ES">Spanish (Spain)</option>
+                <option value="fr-FR">French (France)</option>
+                <option value="de-DE">German (Germany)</option>
+                <option value="it-IT">Italian (Italy)</option>
+                <option value="pt-BR">Portuguese (Brazil)</option>
+                <option value="zh-CN">Chinese (Mandarin)</option>
+                <option value="ja-JP">Japanese</option>
+                <option value="ko-KR">Korean</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="recognitionTimeout">Recognition Timeout (seconds):</label>
+              <input type="number" id="recognitionTimeout" value="5" min="2" max="30" step="1">
+              <small style="color: #666;">Time to wait for caller response</small>
+            </div>
+
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="recognitionContinuous" checked>
+                Continuous Recognition
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label>
+                <input type="checkbox" id="recognitionInterimResults" checked>
+                Show Interim Results
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Voice Settings -->
+        <div class="card" style="margin-top: 20px;">
+          <h4>🎤 OpenAI Voice Settings</h4>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="openaiTTSVoice">OpenAI Voice:</label>
+              <select id="openaiTTSVoice" style="padding: 8px;">
+                <option value="alloy">Alloy (Neutral)</option>
+                <option value="echo">Echo (Male)</option>
+                <option value="fable">Fable (British Male)</option>
+                <option value="onyx">Onyx (Deep Male)</option>
+                <option value="nova">Nova (Female)</option>
+                <option value="shimmer">Shimmer (Soft Female)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="openaiTTSModel">TTS Model:</label>
+              <select id="openaiTTSModel" style="padding: 8px;">
+                <option value="tts-1">TTS-1 (Fast)</option>
+                <option value="tts-1-hd">TTS-1 HD (High Quality)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="openaiTTSSpeed">Speech Speed: <span id="openaiTTSSpeedValue">1.0</span>x</label>
+              <input type="range" id="openaiTTSSpeed" min="0.25" max="4.0" step="0.25" value="1.0">
+            </div>
+
+            <div class="form-group">
+              <label for="aiPauseBetweenSteps">Pause Between Steps (seconds):</label>
+              <input type="number" id="aiPauseBetweenSteps" value="2" min="0" max="10" step="0.5">
+            </div>
+          </div>
+
+          <button id="testAIVoiceBtn" class="btn" style="background: #17a2b8; color: white;">
+            🔊 Test OpenAI Voice
+          </button>
+        </div>
+
+        <!-- Conversation Log -->
+        <div class="card" style="margin-top: 20px;">
+          <h4>📝 Conversation Log</h4>
+          <div id="aiConversationLog"
+            style="border: 1px solid #ddd; border-radius: 6px; padding: 15px; background: #f9f9f9; min-height: 200px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 13px;">
+            <p style="color: #666; font-style: italic;">Conversation will appear here...</p>
+          </div>
+
+          <button id="clearAILogBtn" class="btn" style="background: #6c757d; color: white; margin-top: 10px;">
+            🗑️ Clear Log
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== TAB: CONFIGURATION ========== -->
+    <div class="tab-content" id="tab-config">
+      <!-- SIP Connection -->
+      <div class="card">
+        <h3>SIP Connection Settings</h3>
+        <div class="form-group">
+          <label for="sipServer">SIP Server (WebSocket):</label>
+          <input type="text" id="sipServer" placeholder="ws://127.0.0.1:8088/ws" value="ws://127.0.0.1:8088/ws">
+          <small>WebSocket URL for SIP connection (ws:// or wss://)</small>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="username">Username/Extension:</label>
+            <input type="text" id="username" value="1001">
+          </div>
+          <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="websecret">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="realm">Realm/Domain (optional):</label>
+          <input type="text" id="realm" placeholder="e.g., yourdomain.com">
+        </div>
+      </div>
+
+      <!-- Auto Hangup Settings -->
+      <div class="card">
+        <h3>Auto Hangup Settings</h3>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="autoHangupEnabled" checked>
+            Enable auto-hangup after random duration
+          </label>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="autoHangupMin">Min Duration (seconds):</label>
+            <input type="number" id="autoHangupMin" value="180" min="1">
+          </div>
+          <div class="form-group">
+            <label for="autoHangupMax">Max Duration (seconds):</label>
+            <input type="number" id="autoHangupMax" value="240" min="1">
+          </div>
+        </div>
+      </div>
+
+      <!-- Asterisk Configuration -->
+      <div class="card" style="background: #f0f8ff; border: 2px solid #0066cc;">
+        <h3 style="color: #0066cc;">⚙️ Asterisk Gateway Configuration</h3>
+        <p style="color: #666; font-size: 14px;">Configure your Asterisk gateway to connect to VOS3000 softswitch.</p>
+
+        <div class="form-group">
+          <label for="asteriskTrunkHost">VOS3000 Trunk Host:</label>
+          <input type="text" id="asteriskTrunkHost" value="104.248.249.40">
+          <small>IP address of your VOS3000 softswitch</small>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="asteriskTrunkPort">Trunk Port:</label>
+            <input type="number" id="asteriskTrunkPort" value="5060" min="1" max="65535">
+          </div>
+          <div class="form-group">
+            <label for="asteriskWebRTCPort">WebRTC Port:</label>
+            <input type="number" id="asteriskWebRTCPort" value="8088" min="1" max="65535">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="asteriskRegisterUser">Registration Username:</label>
+          <input type="text" id="asteriskRegisterUser" value="4942139974006">
+        </div>
+
+        <div class="form-group">
+          <label for="asteriskRegisterPassword">Registration Password:</label>
+          <input type="password" id="asteriskRegisterPassword" value="msowu204$">
+        </div>
+
+        <div class="form-group">
+          <label for="asteriskCallerId">Caller ID Number:</label>
+          <input type="text" id="asteriskCallerId" value="4942139974006">
+        </div>
+
+        <div class="form-group">
+          <label for="asteriskCodecs">Allowed Codecs:</label>
+          <input type="text" id="asteriskCodecs" value="alaw,ulaw">
+          <small>Comma-separated codec list (e.g., alaw,ulaw,g729)</small>
+        </div>
+
+        <div class="quick-actions">
+          <button id="applyAsteriskConfigBtn" class="btn btn-primary">💾 Apply Configuration</button>
+          <button id="regenerateAsteriskConfigBtn" class="btn btn-secondary">🔄 Regenerate Config</button>
+          <button id="restartAsteriskBtn" class="btn btn-danger">🔃 Restart Asterisk</button>
+        </div>
+
+        <div id="asteriskConfigStatus"
+          style="margin-top: 15px; padding: 10px; background: white; border-radius: 4px; display: none;"></div>
+
+        <details style="margin-top: 15px;">
+          <summary style="cursor: pointer; font-weight: bold; padding: 10px; background: white; border-radius: 4px;">
+            📋 Show Configuration Preview
+          </summary>
+          <div style="margin-top: 10px;">
+            <h4>pjsip.conf</h4>
+            <pre id="pjsipConfigPreview"
+              style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 11px; max-height: 300px; overflow-y: auto;"></pre>
+            <h4>extensions.conf</h4>
+            <pre id="extensionsConfigPreview"
+              style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 11px; max-height: 200px; overflow-y: auto;"></pre>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ========== TAB: HISTORY ========== -->
+    <div class="tab-content" id="tab-history">
+      <div class="card">
+        <h3>Call History</h3>
+        <div id="callHistory"></div>
+      </div>
+    </div>
+
+    <!-- Hidden Audio Elements -->
+    <audio id="remoteAudio"></audio>
+    <audio id="ringbackTone" loop>
+      <source
+        src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBi6Dzv7UgzcIGWO56+aeUQ0OTqXh7bRlHgU4jtX0z3kvBSh3x+7hkUQLFGCy6uyrWBQLR57e8L9rIAYrfc/91Ik5CBhetOfspVoUC0mi3+21aB4ENo/U9NBwKwYldcjp45JPDA9fru7kqVkUDEih3vC+bCAGK33P/NKKOQYXW7Tq7qdbFApJot/tt2geBDaP1PTQcCsGJXXI6eOSTwwPX67u5KlZFAxIod7wvmwgBit9z/zSijkGF1u06u6nWxQKSaLf7bdoHgQ2j9T00HArBiV1yOnjkk8MD1+u7uSpWRQMSKHe8L5sIAYrfc/80oo5BhdbM+rvoFoVC0mk3++4aR4ENo/T88xxKwYkdsjt4pdQCw9grO3lq1oUDEik3vG9bSAGK33Q+9OLNwYXWrTq76BaFQtJpN/vuGkeBDaP0/PMcSsGJHbI7eKXUAsPYKzt5ataFAxIpN7xvW0gBit90PvTizcGF1q06u+gWhULSaTf77hpHgQ2j9PzzHErBiR2yO3il1ALD2Cs7eWrWhQMSKTe8b1tIAYrfdD704s3BhdbNOrvoFoVC0mk3++4aR4ENo/T88xxKwYkdsjt4pdQCw9grO3lq1oUDEik3vG9bSAGK33Q+9OLNwYXWrTq76BaFQtJpN/vuGkeBDaP0/PMcSsGJHbI7eKXUAsPYKzt5ataFAxIpN7xvW0gBit90PvTizcGF1u06vCgWRQLSaTg77loHgQ2kdLzznEqBiR2yO3il1ALD2Cs7eWrWhQMSKTe8b1tIAYrfdD704s3BhdbNOrwoFkUC0mk3++5aB4ENpHS8c5xKwYkdsjt4pdQCw9grO3lq1oUDEik3vG9bSAGK33Q+9OLNwYXWzTq8KBZFAtJpN/vuWgeBDaR0vHOcSoGJHbI7eKXUAsPYKzt5ataFAxIpN7xvW0gBit90PvTizcGF1s06vCgWRQLSaTf77loHgQ2kdLxznEqBiR2yO3il1ALD2Cs7eWrWhQMSKTe8b1tIAYrfdD704s3BhdbNOrwoFkUC0mk3++5aB4ENpHS8c5xKwYkdsjt4pdQCw9grO3lq1oUDEik3vG9bSAGK33Q+9OLNwYXWzTq8KBZFAtJpN/vuWgeBDaR0vHOcSoGJHbI7eKXUAsPYKzt5ataFAxIpN7xvW0gBit90PvTizcGF1s06vCgWRQLSaTf77loHgQ2kdLxznEqBiR2yO3il1ALD2Cs7eWrWhQMSKTe8b1tIAYrfdD704s3BhdbNOrwoFkUC0mk3++5aB4ENpHS8c5xKwYkdsjt4pdQCw9grO3lq1oUDEik3vG9bSAGK33Q+9OLNwYXWzTq8KBZFAtJpN/vuWgeBDaR0vHOcSoGJHbI7eKXUAsPYKzt5ataFAxIpN7xvW0gBit90PvTizcGF1s06vCgWRQLSaTf77loHgQ2kdLxznEqBiR2yO3il1ALD2Cs7eWrWhQMSKTe8b1tIAYrfdD704s3BhdbNOrwoFkUC0mk3++5aB4ENpHS8c5xKwYkdsjt4pdQCw9grO3lq1oUDEik3vG9bSAGK33Q+9OLNwYXWzTq8KBZFAtJpN/vuWgeBDaR0vHOcSoGJHbI7eKXUAsPYKzt5ataFAxIpN7xvW0gBit90PvTizcGF1s06vCgWRQLSaTf77loHgQ2kdLxznEqBiR2yO3il1ALD2Cs7eWrWhQMSKTe8b1tIAYrfdD704s3Bhd"
+        type="audio/wav">
+    </audio>
+    <audio id="holdMusic" loop crossorigin="anonymous">
+      <!-- Using a simple beep tone as hold music - you can replace with your own file -->
+    </audio>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="jssip.min.js"></script>
+  <script src="script.js"></script>
+  <script>
+    // Display user info
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.username) {
+      document.getElementById('userInfo').textContent = `👤 ${user.username}`;
+    }
+
+    // Tab switching function
+    function switchTab(tabName) {
+      // Hide all tab contents
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+
+      // Remove active class from all tab buttons
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      // Show selected tab content
+      document.getElementById('tab-' + tabName).classList.add('active');
+
+      // Add active class to clicked tab button
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+
+</html>
