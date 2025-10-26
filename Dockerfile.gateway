@@ -1,0 +1,31 @@
+# Asterisk WebRTC Gateway for Railway
+FROM debian:bullseye-slim
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    asterisk \
+    asterisk-modules \
+    asterisk-core-sounds-en \
+    asterisk-moh-opsound-wav \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy configuration files
+COPY gateway/asterisk/config/asterisk.conf /etc/asterisk/asterisk.conf
+COPY gateway/asterisk/config/pjsip.conf /etc/asterisk/pjsip.conf
+COPY gateway/asterisk/config/extensions.conf /etc/asterisk/extensions.conf
+COPY gateway/asterisk/config/http.conf /etc/asterisk/http.conf
+COPY gateway/asterisk/config/modules.conf /etc/asterisk/modules.conf
+COPY gateway/asterisk/config/rtp.conf /etc/asterisk/rtp.conf
+
+# Create necessary directories
+RUN mkdir -p /var/run/asterisk && \
+    chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk
+
+# Expose ports
+# 8088: WebSocket (WSS)
+# 5060: SIP (UDP/TCP)
+# 10000-10099: RTP media
+EXPOSE 8088 5060 10000-10099/udp
+
+# Start Asterisk
+CMD ["asterisk", "-f", "-vvv"]
