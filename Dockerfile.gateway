@@ -17,13 +17,9 @@ COPY gateway/asterisk/config/http.conf /etc/asterisk/http.conf
 COPY gateway/asterisk/config/modules.conf /etc/asterisk/modules.conf
 COPY gateway/asterisk/config/rtp.conf /etc/asterisk/rtp.conf
 
-# Copy startup script
-COPY gateway/start-asterisk.sh /start-asterisk.sh
-RUN chmod +x /start-asterisk.sh
-
-# Create necessary directories
-RUN mkdir -p /var/run/asterisk && \
-  chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk /etc/asterisk
+# Create necessary directories and set permissions
+RUN mkdir -p /var/run/asterisk /var/spool/asterisk && \
+  chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk /var/spool/asterisk /etc/asterisk
 
 # Expose ports
 # 8088: WebSocket (WSS)
@@ -31,5 +27,9 @@ RUN mkdir -p /var/run/asterisk && \
 # 10000-10099: RTP media
 EXPOSE 8088 5060 10000-10099/udp
 
-# Start Asterisk using the startup script
-CMD ["/start-asterisk.sh"]
+# Run as root but Asterisk will drop to asterisk user internally
+# This avoids the capability error while still being secure
+USER root
+
+# Start Asterisk in foreground with console
+CMD ["asterisk", "-f", "-vvvv", "-c"]
