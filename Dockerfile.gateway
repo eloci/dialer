@@ -3,11 +3,11 @@ FROM debian:bullseye-slim
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
-    asterisk \
-    asterisk-modules \
-    asterisk-core-sounds-en \
-    asterisk-moh-opsound-wav \
-    && rm -rf /var/lib/apt/lists/*
+  asterisk \
+  asterisk-modules \
+  asterisk-core-sounds-en \
+  asterisk-moh-opsound-wav \
+  && rm -rf /var/lib/apt/lists/*
 
 # Copy configuration files
 COPY gateway/asterisk/config/asterisk.conf /etc/asterisk/asterisk.conf
@@ -19,7 +19,11 @@ COPY gateway/asterisk/config/rtp.conf /etc/asterisk/rtp.conf
 
 # Create necessary directories
 RUN mkdir -p /var/run/asterisk && \
-    chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk
+  chown -R asterisk:asterisk /var/run/asterisk /var/log/asterisk /var/lib/asterisk
+
+# Fix capability errors by disabling core dumps and running as non-privileged user
+RUN sed -i 's/;dumpcore = yes/dumpcore = no/' /etc/asterisk/asterisk.conf && \
+  echo -e "\n[options]\ndontarncore = yes" >> /etc/asterisk/asterisk.conf
 
 # Expose ports
 # 8088: WebSocket (WSS)
@@ -27,5 +31,5 @@ RUN mkdir -p /var/run/asterisk && \
 # 10000-10099: RTP media
 EXPOSE 8088 5060 10000-10099/udp
 
-# Start Asterisk
-CMD ["asterisk", "-f", "-vvv"]
+# Start Asterisk with user/group flags to avoid capability issues
+CMD ["asterisk", "-f", "-vvv", "-U", "asterisk", "-G", "asterisk"]
