@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,8 +33,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .logo {
@@ -185,9 +193,20 @@
       transition: all 0.3s;
     }
 
-    .weak { background: #f44336; width: 33%; }
-    .medium { background: #ff9800; width: 66%; }
-    .strong { background: #4caf50; width: 100%; }
+    .weak {
+      background: #f44336;
+      width: 33%;
+    }
+
+    .medium {
+      background: #ff9800;
+      width: 66%;
+    }
+
+    .strong {
+      background: #4caf50;
+      width: 100%;
+    }
 
     small {
       display: block;
@@ -197,6 +216,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="register-container">
     <div class="logo">
@@ -210,7 +230,8 @@
     <form id="registerForm">
       <div class="form-group">
         <label for="username">Username</label>
-        <input type="text" id="username" name="username" required minlength="3" autocomplete="username" placeholder="Choose a username">
+        <input type="text" id="username" name="username" required minlength="3" autocomplete="username"
+          placeholder="Choose a username">
         <small>At least 3 characters</small>
       </div>
 
@@ -221,7 +242,8 @@
 
       <div class="form-group">
         <label for="password">Password</label>
-        <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password" placeholder="Create a password">
+        <input type="password" id="password" name="password" required minlength="6" autocomplete="new-password"
+          placeholder="Create a password">
         <div class="password-strength">
           <div class="password-strength-bar" id="strengthBar"></div>
         </div>
@@ -230,7 +252,8 @@
 
       <div class="form-group">
         <label for="confirmPassword">Confirm Password</label>
-        <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password" placeholder="Confirm your password">
+        <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password"
+          placeholder="Confirm your password">
       </div>
 
       <button type="submit" class="btn" id="registerBtn">
@@ -346,4 +369,5 @@
     }
   </script>
 </body>
+
 </html>

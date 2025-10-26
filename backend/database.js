@@ -98,7 +98,7 @@ const userDB = {
         db.run(
           'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
           [username, email, hashedPassword],
-          function(err) {
+          function (err) {
             if (err) {
               if (err.message.includes('UNIQUE')) {
                 reject(new Error('Username or email already exists'));
@@ -180,7 +180,7 @@ const userDB = {
            openai_key = ?,
            settings_json = ?`,
         [userId, sip_username, sip_password, sip_realm, openai_key, settings_json,
-         sip_username, sip_password, sip_realm, openai_key, settings_json],
+          sip_username, sip_password, sip_realm, openai_key, settings_json],
         (err) => {
           if (err) reject(err);
           else resolve();

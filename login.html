@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -32,8 +33,15 @@
     }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-20px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .logo {
@@ -201,6 +209,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="login-container">
     <div class="logo">
@@ -220,13 +229,15 @@
     <form id="loginForm">
       <div class="form-group">
         <label for="username">Username or Email</label>
-        <input type="text" id="username" name="username" required autocomplete="username" placeholder="Enter your username">
+        <input type="text" id="username" name="username" required autocomplete="username"
+          placeholder="Enter your username">
       </div>
 
       <div class="form-group">
         <label for="password">Password</label>
         <div class="password-toggle">
-          <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="Enter your password">
+          <input type="password" id="password" name="password" required autocomplete="current-password"
+            placeholder="Enter your password">
           <button type="button" onclick="togglePassword()">👁️</button>
         </div>
       </div>
@@ -258,15 +269,15 @@
           'Authorization': `Bearer ${token}`
         }
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.valid) {
-          window.location.href = '/';
-        }
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-      });
+        .then(res => res.json())
+        .then(data => {
+          if (data.valid) {
+            window.location.href = '/';
+          }
+        })
+        .catch(() => {
+          localStorage.removeItem('token');
+        });
     }
 
     loginForm.addEventListener('submit', async (e) => {
@@ -336,4 +347,5 @@
     }
   </script>
 </body>
+
 </html>

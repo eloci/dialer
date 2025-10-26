@@ -117,19 +117,19 @@
           'Authorization': `Bearer ${token}`
         }
       })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.valid) {
+        .then(res => res.json())
+        .then(data => {
+          if (!data.valid) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+          }
+        })
+        .catch(() => {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           window.location.href = '/login.html';
-        }
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login.html';
-      });
+        });
     }
 
     // Logout function
@@ -148,7 +148,8 @@
       <h1>📞 SIP Dialer</h1>
       <div style="display: flex; align-items: center; gap: 15px;">
         <span id="userInfo" style="color: #666; font-size: 14px;"></span>
-        <button onclick="logout()" style="padding: 8px 15px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">Logout</button>
+        <button onclick="logout()"
+          style="padding: 8px 15px; background: #f44336; color: white; border: none; border-radius: 5px; cursor: pointer;">Logout</button>
         <div id="connectionStatus" class="status">Not Connected</div>
       </div>
     </div>
